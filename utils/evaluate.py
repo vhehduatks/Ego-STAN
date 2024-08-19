@@ -258,7 +258,10 @@ def plot_skels_compare(p3ds_1, p3ds_2, label_1, label_2, savepath=None, dataset=
 
 
 def skeleton_rescale(joints, bone_length, kinematic_parents):
-    bones = joints[:, 1:] - joints[:,kinematic_parents[1:]] # 3 x 14 
+    try:
+        bones = joints[:, 1:] - joints[:,kinematic_parents[1:]] # 3 x 14 
+    except Exception as e:
+        print(e)
     bones_rescale = bones * bone_length/np.sqrt(np.sum(np.power(bones, 2), axis=0)) # 3 x 14
     #bones_rescale = bsxfun(@times, bones, bone_length./sqrt(sum(bones.^2,1))) 
 
@@ -511,7 +514,7 @@ def p_mpjpe(predicted, target, return_error=True):
     
 
 
-def compute_error(pred, gt, return_mean=True, mode='baseline', protocol=None):
+def compute_error(pred, gt, return_mean=True, mode='baseline', protocol=None, _SEL = None):
     """Compute error
 
     Arguments:
@@ -541,14 +544,21 @@ def compute_error(pred, gt, return_mean=True, mode='baseline', protocol=None):
         if gt.shape[0] != 3:
             gt = np.transpose(gt, [1, 0])
         assert pred.shape == gt.shape
-        mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+        mean3D_path = r'C:\Users\user\Documents\GitHub\Ego-STAN\utils\mean3D.mat'
+        # mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+        mean3D = scipy.io.loadmat(mean3D_path)['mean3D'] # 3x15 shape
         kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
         bones_mean = mean3D - mean3D[:,kinematic_parents]
         bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
         gt_rescale = skeleton_rescale(gt, bone_length[1:], kinematic_parents)
         pred_rescale = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
         _, gt_rot, _ = procrustes(np.transpose(pred_rescale), np.transpose(gt_rescale), True, False)
-        error = pred - np.transpose(gt_rot)
+        # error = pred - np.transpose(gt_rot)
+        # joint_error = np.sqrt(np.sum(np.power(error, 2), axis=0)) 
+        if _SEL:
+            pred_rescale = pred_rescale[:,_SEL]
+            gt_rot = gt_rot[_SEL,:]
+        error = pred_rescale - np.transpose(gt_rot)
         joint_error = np.sqrt(np.sum(np.power(error, 2), axis=0)) 
         if return_mean:
             return np.mean(joint_error)
@@ -707,7 +717,7 @@ class EvalUpperBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode = self.mode, protocol = self.protocol)
+            err = compute_error(pose_in, pose_target, mode = self.mode, protocol = self.protocol, _SEL = self._SEL)
             
 
             if actions and (self.mode == 'baseline' or self.mode == 'sequential'):
@@ -759,7 +769,7 @@ class EvalLowerBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode = self.mode, protocol = self.protocol)
+            err = compute_error(pose_in, pose_target, mode = self.mode, protocol = self.protocol, _SEL = self._SEL)
             
 
             if actions and (self.mode == 'baseline' or self.mode == 'sequential'):

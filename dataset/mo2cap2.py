@@ -237,7 +237,7 @@ class Mo2Cap2DataModule(pl.LightningDataModule):
         self.batch_size = kwargs.get('batch_size')
         self.num_workers = kwargs.get('num_workers', 0)
         self.heatmap_type = kwargs.get('heatmap_type')
-
+	#TODO : test셋 이미지 처리 확인
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
             [trsf.ImageTrsf(), trsf.Joints3DTrsf(jid_to_zero = 0), trsf.ToTensor()]

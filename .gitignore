@@ -11,3 +11,6 @@ __pycache__/
 /lightning_logs/
 /att_visualization.py
 sandbox.py
+*.png
+*.ckpt
+/temp_res

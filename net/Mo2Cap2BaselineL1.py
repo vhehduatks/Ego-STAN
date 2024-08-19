@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from utils import evaluate
 from net.blocks import *
-
+import wandb
 
 
 class Mo2Cap2BaselineL1(pl.LightningModule):
@@ -172,6 +172,7 @@ class Mo2Cap2BaselineL1(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
+        self.log("train_iteration",self.iteration)
         self.iteration += img.size(0)
 
         return loss
@@ -181,7 +182,7 @@ class Mo2Cap2BaselineL1(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        tensorboard = self.logger.experiment
+        logger_ = self.logger.experiment
         img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -205,8 +206,14 @@ class Mo2Cap2BaselineL1(pl.LightningModule):
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
         if batch_idx == 0:
-            tensorboard.add_images('Val Image', img, self.iteration)
-            tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+            # logger_.add_images('Val Image', img, self.iteration)
+            # logger_.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+            logger_.log({
+                'Val Image': [wandb.Image(img)],
+                'Val Predicted 2D Heatmap': [wandb.Image(torch.clip(torch.sum(hm, dim=0, keepdim=True), 0, 1)) for hm in heatmap]
+            }, step=self.iteration)
+            pass
+        
         return val_loss_3d_pose
 
     def on_validation_start(self):
